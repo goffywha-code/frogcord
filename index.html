@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrogCord</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        discord: {
+                            darker: '#202225',
+                            dark: '#2f3136',
+                            normal: '#36393f',
+                            secondary: '#40444b',
+                            accent: '#5865f2',
+                            accentHover: '#4752c4',
+                            textNormal: '#dcddde',
+                            textMuted: '#8e9297',
+                            headerPrimary: '#fff',
+                            headerSecondary: '#b9bbbe'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+    <style>
+        body { background-color: #202225; color: #dcddde; font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2e3136; }
+        ::-webkit-scrollbar-thumb { background: #202225; border-radius: 4px; }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 bg-[#36393f] flex items-center justify-center z-40">
+        <div class="bg-[#313338] p-8 rounded-lg shadow-2xl w-[440px]">
+            <div class="text-center mb-6">
+                <div class="text-4xl mb-2">🐸</div>
+                <h2 id="auth-title" class="text-2xl font-bold text-white mb-1">Welcome back to FrogCord!</h2>
+                <p id="auth-sub" class="text-discord-textMuted text-sm">We're so excited to see you again!</p>
+            </div>
+
+            <div class="space-y-4">
+                <div id="username-field" class="hidden">
+                    <label class="block text-xs font-bold text-discord-headerSecondary uppercase mb-2">Username</label>
+                    <input type="text" id="input-username" class="w-full bg-[#1e1f22] border-none rounded p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-discord-accent" placeholder="e.g. pondmaster">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-discord-headerSecondary uppercase mb-2">Email</label>
+                    <input type="email" id="input-email" class="w-full bg-[#1e1f22] border-none rounded p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-discord-accent" placeholder="name@example.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-discord-headerSecondary uppercase mb-2">Password</label>
+                    <input type="password" id="input-password" class="w-full bg-[#1e1f22] border-none rounded p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-discord-accent" placeholder="••••••••">
+                </div>
+
+                <div id="auth-error" class="text-red-400 text-xs hidden bg-red-950/40 p-2 rounded border border-red-900/50"></div>
+
+                <button id="auth-btn" class="w-full bg-discord-accent hover:bg-discord-accentHover text-white font-medium py-2.5 rounded transition">Log In</button>
+                
+                <div class="text-sm text-discord-textMuted text-center">
+                    <span id="auth-toggle-text">Need an account?</span> 
+                    <button id="auth-toggle-btn" class="text-discord-accent hover:underline ml-1">Register</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="app-screen" class="hidden flex h-full w-full">
+        <!-- Servers Sidebar -->
+        <div class="w-[72px] bg-[#202225] flex flex-col items-center py-3 space-y-2 z-10">
+            <div class="w-12 h-12 bg-discord-secondary hover:bg-discord-accent rounded-3xl hover:rounded-2xl transition-all duration-200 flex items-center justify-center text-white cursor-pointer font-bold shadow">
+                🐸
+            </div>
+        </div>
+
+        <!-- Channels / Navigation Sidebar -->
+        <div class="w-60 bg-[#2f3136] flex flex-col">
+            <div class="h-12 border-b border-[#202225] px-4 flex items-center justify-between font-bold text-white shadow-sm">
+                <span>FrogCord</span>
+            </div>
+            
+            <!-- Smart Search Bar -->
+            <div class="p-2 relative">
+                <input type="text" id="search-users" placeholder="🔍 Search database users..." class="w-full bg-[#202225] text-xs text-white rounded p-2 focus:outline-none focus:ring-1 focus:ring-discord-accent">
+                <div id="search-results" class="hidden absolute left-2 right-2 top-12 bg-[#25262b] border border-[#202225] rounded shadow-xl max-h-48 overflow-y-auto z-30 divide-y divide-[#2f3136]"></div>
+            </div>
+
+            <!-- Channels -->
+            <div class="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+                <div class="text-xs font-bold text-discord-textMuted px-2 uppercase mb-1">Text Channels</div>
+                <div class="px-2 py-1.5 rounded bg-[#40444b] text-white text-sm font-medium flex items-center space-x-2">
+                    <span class="text-discord-textMuted">#</span>
+                    <span>general-chat</span>
+                </div>
+            </div>
+
+            <!-- User Footer Profile Box -->
+            <div class="h-14 bg-[#292b2f] px-2 flex items-center justify-between">
+                <div class="flex items-center space-x-2 overflow-hidden cursor-pointer" id="profile-trigger">
+                    <div class="w-8 h-8 bg-discord-accent rounded-full flex items-center justify-center text-white font-bold shrink-0" id="user-avatar-initial">F</div>
+                    <div class="truncate">
+                        <div id="user-display-name" class="text-sm font-bold text-white leading-tight truncate">Username</div>
+                        <div class="text-[10px] text-emerald-400 font-medium">Online</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button id="settings-trigger" class="text-discord-textMuted hover:text-white text-sm p-1.5 rounded hover:bg-[#35373c]" title="Settings">⚙️</button>
+                    <button id="logout-btn" class="text-discord-textMuted hover:text-white text-sm p-1.5 rounded hover:bg-[#35373c]" title="Log Out">🚪</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 bg-[#36393f] flex flex-col">
+            <div class="h-12 border-b border-[#202225] px-4 flex items-center shadow-sm justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-discord-textMuted font-bold text-lg">#</span>
+                    <span class="text-white font-bold">general-chat</span>
+                </div>
+                <div class="text-xs text-discord-textMuted">Database Connected ⚡</div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+            <!-- Message Input Bar with File Upload -->
+            <div class="p-4 bg-[#36393f]">
+                <form id="message-form" class="bg-[#40444b] rounded-lg flex items-center px-4 py-2.5 space-x-2">
+                    <label class="cursor-pointer text-discord-textMuted hover:text-white text-xl font-bold" title="Upload File">
+                        +
+                        <input type="file" id="file-input" class="hidden">
+                    </label>
+                    <input type="text" id="message-input" placeholder="Message #general-chat" class="w-full bg-transparent text-white focus:outline-none text-sm">
+                    <button type="submit" class="text-discord-accent hover:text-white font-bold text-sm bg-[#5865f2]/20 px-3 py-1.5 rounded hover:bg-discord-accent transition shrink-0">Send</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profile-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+        <div class="bg-[#313338] rounded-lg shadow-2xl w-[360px] overflow-hidden">
+            <div class="h-24 bg-discord-accent relative">
+                <button id="close-profile" class="absolute top-2 right-2 bg-black/40 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs">✕</button>
+            </div>
+            <div class="px-5 pb-5 relative">
+                <div class="w-20 h-20 bg-discord-darker rounded-full border-4 border-[#313338] absolute -top-10 flex items-center justify-center text-3xl font-bold text-white shadow" id="modal-avatar">🐸</div>
+                <div class="pt-12">
+                    <h3 id="modal-username" class="text-xl font-bold text-white">Username</h3>
+                    <p id="modal-email" class="text-xs text-discord-textMuted mb-4">email@placeholder.com</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+        <div class="bg-[#313338] rounded-lg shadow-2xl w-[420px] p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-[#202225] pb-3">
+                <h3 class="text-lg font-bold text-white">User Settings</h3>
+                <button id="close-settings" class="text-discord-textMuted hover:text-white">✕</button>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-discord-headerSecondary uppercase mb-2">Change Username</label>
+                <div class="flex space-x-2">
+                    <input type="text" id="new-username-input" class="w-full bg-[#1e1f22] border-none rounded p-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-discord-accent" placeholder="New username">
+                    <button id="save-username-btn" class="bg-discord-accent hover:bg-discord-accentHover text-white text-xs font-bold px-4 rounded transition">Save</button>
+                </div>
+            </div>
+            <div id="settings-msg" class="text-emerald-400 text-xs hidden">Username updated successfully!</div>
+        </div>
+    </div>
+
+    <!-- APPLICATION SCRIPT LOGIC -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCmoVeVQivebDZsnXR2ltJFMVXYxk_P4U0",
+            authDomain: "frogcord-43b4b.firebaseapp.com",
+            projectId: "frogcord-43b4b",
+            storageBucket: "frogcord-43b4b.firebasestorage.app",
+            messagingSenderId: "177821335670",
+            appId: "1:177821335670:web:14ba65f78ef7b679fd1f57",
+            measurementId: "G-QE0Q3C30J5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        let isRegistering = false;
+        let currentUser = null;
+
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const authTitle = document.getElementById('auth-title');
+        const authSub = document.getElementById('auth-sub');
+        const authBtn = document.getElementById('auth-btn');
+        const authToggleBtn = document.getElementById('auth-toggle-btn');
+        const authToggleText = document.getElementById('auth-toggle-text');
+        const usernameField = document.getElementById('username-field');
+        const inputUsername = document.getElementById('input-username');
+        const inputEmail = document.getElementById('input-email');
+        const inputPassword = document.getElementById('input-password');
+        const authError = document.getElementById('auth-error');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        authToggleBtn.addEventListener('click', () => {
+            isRegistering = !isRegistering;
+            authError.classList.add('hidden');
+            if (isRegistering) {
+                authTitle.textContent = "Create an account";
+                authSub.textContent = "Join the FrogCord pond today!";
+                authBtn.textContent = "Register";
+                authToggleText.textContent = "Already have an account?";
+                authToggleBtn.textContent = "Log In";
+                usernameField.classList.remove('hidden');
+            } else {
+                authTitle.textContent = "Welcome back to FrogCord!";
+                authSub.textContent = "We're so excited to see you again!";
+                authBtn.textContent = "Log In";
+                authToggleText.textContent = "Need an account?";
+                authToggleBtn.textContent = "Register";
+                usernameField.classList.add('hidden');
+            }
+        });
+
+        authBtn.addEventListener('click', async () => {
+            authError.classList.add('hidden');
+            const email = inputEmail.value.trim();
+            const password = inputPassword.value.trim();
+            const username = inputUsername.value.trim();
+
+            if (!email || !password) {
+                showError("Please fill in all required fields.");
+                return;
+            }
+
+            try {
+                if (isRegistering) {
+                    if (!username) {
+                        showError("Please pick a username.");
+                        return;
+                    }
+                    const creds = await auth.createUserWithEmailAndPassword(email, password);
+                    await db.collection("users").doc(creds.user.uid).set({
+                        uid: creds.user.uid,
+                        username: username.toLowerCase(),
+                        displayName: username,
+                        email: email,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    await auth.signInWithEmailAndPassword(email, password);
+                }
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+
+        function showError(msg) {
+            authError.textContent = msg;
+            authError.classList.remove('hidden');
+        }
+
+        logoutBtn.addEventListener('click', () => auth.signOut());
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                authScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+
+                let userData = { displayName: user.email.split('@')[0] };
+                try {
+                    const docSnap = await db.collection("users").doc(user.uid).get();
+                    if (docSnap.exists) {
+                        userData = docSnap.data();
+                    } else {
+                        await db.collection("users").doc(user.uid).set({
+                            uid: user.uid,
+                            username: userData.displayName.toLowerCase(),
+                            displayName: userData.displayName,
+                            email: user.email
+                        });
+                    }
+                } catch(e) {}
+
+                updateUIUser(userData, user.email);
+                loadRealtimeMessages();
+            } else {
+                currentUser = null;
+                authScreen.classList.remove('hidden');
+                appScreen.classList.add('hidden');
+            }
+        });
+
+        function updateUIUser(userData, email) {
+            document.getElementById('user-display-name').textContent = userData.displayName;
+            document.getElementById('user-avatar-initial').textContent = userData.displayName.charAt(0).toUpperCase();
+            document.getElementById('modal-username').textContent = userData.displayName;
+            document.getElementById('modal-email').textContent = email;
+            document.getElementById('modal-avatar').textContent = userData.displayName.charAt(0).toUpperCase();
+        }
+
+        const profileModal = document.getElementById('profile-modal');
+        document.getElementById('profile-trigger').addEventListener('click', () => profileModal.classList.remove('hidden'));
+        document.getElementById('close-profile').addEventListener('click', () => profileModal.classList.add('hidden'));
+
+        // Settings Modal
+        const settingsModal = document.getElementById('settings-modal');
+        document.getElementById('settings-trigger').addEventListener('click', () => settingsModal.classList.remove('hidden'));
+        document.getElementById('close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+        const saveUsernameBtn = document.getElementById('save-username-btn');
+        const newUsernameInput = document.getElementById('new-username-input');
+        const settingsMsg = document.getElementById('settings-msg');
+
+        saveUsernameBtn.addEventListener('click', async () => {
+            const newName = newUsernameInput.value.trim();
+            if (!newName || !currentUser) return;
+
+            try {
+                await db.collection("users").doc(currentUser.uid).update({
+                    displayName: newName,
+                    username: newName.toLowerCase()
+                });
+                document.getElementById('user-display-name').textContent = newName;
+                document.getElementById('user-avatar-initial').textContent = newName.charAt(0).toUpperCase();
+                document.getElementById('modal-username').textContent = newName;
+                document.getElementById('modal-avatar').textContent = newName.charAt(0).toUpperCase();
+                
+                settingsMsg.classList.remove('hidden');
+                setTimeout(() => settingsMsg.classList.add('hidden'), 3000);
+                newUsernameInput.value = '';
+            } catch (err) {
+                console.error("Error updating username:", err);
+            }
+        });
+
+        // Chat Messaging & File Uploads
+        const messageContainer = document.getElementById('message-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const fileInput = document.getElementById('file-input');
+
+        function loadRealtimeMessages() {
+            db.collection("channels").doc("general").collection("messages")
+                .orderBy("timestamp", "asc")
+                .onSnapshot((snapshot) => {
+                    messageContainer.innerHTML = '';
+                    snapshot.forEach((docSnap) => {
+                        const msg = docSnap.data();
+                        const timeStr = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now';
+                        
+                        let contentHtml = `<p class="text-sm text-discord-textNormal break-words">${escapeHtml(msg.text || '')}</p>`;
+                        if (msg.fileUrl) {
+                            if (msg.fileType && msg.fileType.startsWith('image/')) {
+                                contentHtml += `<div class="mt-2"><img src="${msg.fileUrl}" class="max-w-xs rounded max-h-60 object-cover"></div>`;
+                            } else {
+                                contentHtml += `<div class="mt-2"><a href="${msg.fileUrl}" target="_blank" class="text-discord-accent underline text-xs">📎 Download File</a></div>`;
+                            }
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = "flex items-start space-x-3";
+                        div.innerHTML = `
+                            <div class="w-10 h-10 bg-discord-accent rounded-full flex items-center justify-center text-white font-bold shrink-0">${msg.username.charAt(0).toUpperCase()}</div>
+                            <div class="overflow-hidden">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-bold text-white text-sm">${msg.username}</span>
+                                    <span class="text-[10px] text-discord-textMuted">${timeStr}</span>
+                                </div>
+                                ${contentHtml}
+                            </div>
+                        `;
+                        messageContainer.appendChild(div);
+                    });
+                    messageContainer.scrollTop = messageContainer.scrollHeight;
+                });
+        }
+
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            const file = fileInput.files[0];
+            if ((!text && !file) || !currentUser) return;
+
+            try {
+                let username = currentUser.email.split('@')[0];
+                const userDoc = await db.collection("users").doc(currentUser.uid).get();
+                if (userDoc.exists) username = userDoc.data().displayName;
+
+                let fileUrl = null;
+                let fileType = null;
+
+                if (file) {
+                    const storageRef = storage.ref().child(`chat_files/${Date.now()}_${file.name}`);
+                    const snapshot = await storageRef.put(file);
+                    fileUrl = await snapshot.ref.getDownloadURL();
+                    fileType = file.type;
+                }
+
+                await db.collection("channels").doc("general").collection("messages").add({
+                    text: text,
+                    fileUrl: fileUrl,
+                    fileType: fileType,
+                    uid: currentUser.uid,
+                    username: username,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                messageInput.value = '';
+                fileInput.value = '';
+            } catch(err) {
+                console.error("Error sending message:", err);
+            }
+        });
+
+        function escapeHtml(str) {
+            return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+        }
+    </script>
+</body>
+</html>
