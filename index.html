@@ -39,9 +39,6 @@
 </head>
 <body class="h-screen flex overflow-hidden">
 
-    <!-- Hidden audio element for WebRTC voice stream -->
-    <audio id="remote-audio" autoplay></audio>
-
     <!-- AUTHENTICATION SCREEN -->
     <div id="auth-screen" class="fixed inset-0 bg-[#36393f] flex items-center justify-center z-40">
         <div class="bg-[#313338] p-8 rounded-lg shadow-2xl w-[400px]">
@@ -88,46 +85,29 @@
                 <span>FrogCord</span>
             </div>
 
-            <div class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-                <!-- Text Channels -->
+            <div class="flex-1 overflow-y-auto px-2 py-3 space-y-3">
                 <div>
                     <div class="text-xs font-bold text-discord-textMuted px-2 uppercase mb-1">Text Channels</div>
-                    <div class="px-2 py-1.5 rounded bg-[#40444b] text-white text-sm font-medium flex items-center space-x-2 cursor-pointer">
+                    <div id="select-text-channel" class="px-2 py-1.5 rounded bg-[#40444b] text-white text-sm font-medium flex items-center space-x-2 cursor-pointer">
                         <span class="text-discord-textMuted font-bold">#</span>
                         <span>general-chat</span>
                     </div>
                 </div>
 
-                <!-- Voice Channels -->
                 <div>
                     <div class="text-xs font-bold text-discord-textMuted px-2 uppercase mb-1">Voice Channels</div>
-                    <div id="voice-channel-btn" onclick="toggleVoiceChannel()" class="px-2 py-1.5 rounded hover:bg-[#35373c] text-discord-textMuted hover:text-white text-sm font-medium flex items-center justify-between cursor-pointer transition">
+                    <div id="join-voice-btn" class="px-2 py-1.5 rounded hover:bg-[#35373c] text-discord-textMuted hover:text-white text-sm font-medium flex items-center justify-between cursor-pointer transition">
                         <div class="flex items-center space-x-2">
                             <span>🔊</span>
                             <span>General Voice</span>
                         </div>
-                        <span id="voice-status-badge" class="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">Off</span>
+                        <span id="voice-status-badge" class="text-[10px] bg-[#202225] px-1.5 py-0.5 rounded text-discord-textMuted">Off</span>
                     </div>
-                </div>
-            </div>
-
-            <!-- Active Voice Call Status Banner -->
-            <div id="voice-active-bar" class="hidden bg-[#202225] p-3 border-t border-[#1e1f22] flex flex-col space-y-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span class="text-xs font-bold text-emerald-400">Voice Connected</span>
-                    </div>
-                    <button onclick="toggleMute()" id="mute-btn" class="text-xs bg-[#40444b] hover:bg-[#4f545c] text-white px-2 py-1 rounded">Mute</button>
-                </div>
-                <div class="flex items-center justify-between text-xs text-discord-textMuted">
-                    <span>Channel: General Voice</span>
-                    <button onclick="leaveVoiceChannel()" class="text-red-400 hover:text-red-300 font-bold">Disconnect</button>
                 </div>
             </div>
 
             <!-- Footer User Profile Bar -->
-            <div class="h-14 bg-[#292b2f] px-3 flex items-center justify-between">
+            <div class="h-14 bg-[#292b2f] px-3 flex items-center justify-between shrink-0">
                 <div class="flex items-center space-x-2 overflow-hidden">
                     <div class="w-8 h-8 bg-discord-accent rounded-full flex items-center justify-center text-white font-bold shrink-0" id="user-avatar">F</div>
                     <div class="truncate">
@@ -139,25 +119,66 @@
             </div>
         </div>
 
-        <!-- Chat Area -->
+        <!-- Main Content Area -->
         <div class="flex-1 bg-[#36393f] flex flex-col min-w-0">
             <div class="h-12 border-b border-[#202225] px-4 flex items-center shadow-sm justify-between shrink-0">
                 <div class="flex items-center space-x-2">
-                    <span class="text-discord-textMuted font-bold text-lg">#</span>
-                    <span class="text-white font-bold">general-chat</span>
+                    <span id="channel-header-icon" class="text-discord-textMuted font-bold text-lg">#</span>
+                    <span id="channel-header-title" class="text-white font-bold">general-chat</span>
                 </div>
             </div>
 
-            <div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+            <!-- Text Chat View -->
+            <div id="chat-view" class="flex-1 flex flex-col min-h-0">
+                <div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
 
-            <div class="p-4 bg-[#36393f] shrink-0">
-                <form id="message-form" class="bg-[#40444b] rounded-lg flex items-center px-4 py-2.5">
-                    <input type="text" id="message-input" placeholder="Message #general-chat" class="w-full bg-transparent text-white focus:outline-none text-sm" autocomplete="off">
-                    <button type="submit" class="text-discord-accent hover:text-white font-bold text-sm bg-[#5865f2]/20 px-3 py-1.5 rounded hover:bg-discord-accent transition shrink-0 ml-2">Send</button>
-                </form>
+                <div class="p-4 bg-[#36393f] shrink-0">
+                    <form id="message-form" class="bg-[#40444b] rounded-lg flex items-center px-4 py-2.5">
+                        <input type="text" id="message-input" placeholder="Message #general-chat" class="w-full bg-transparent text-white focus:outline-none text-sm" autocomplete="off">
+                        <button type="submit" class="text-discord-accent hover:text-white font-bold text-sm bg-[#5865f2]/20 px-3 py-1.5 rounded hover:bg-discord-accent transition shrink-0 ml-2">Send</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Voice Call View (Custom Meet-Style Cards Layout) -->
+            <div id="voice-view" class="hidden flex-1 bg-[#111214] flex flex-col justify-between p-6 overflow-hidden">
+                <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center max-w-5xl mx-auto w-full">
+                    <!-- User Card 1 (Local You) -->
+                    <div class="bg-[#2b2d31] rounded-2xl h-full max-h-[320px] min-h-[200px] flex flex-col items-center justify-center relative border-2 border-emerald-500/80 shadow-xl overflow-hidden">
+                        <div class="w-24 h-24 bg-discord-accent rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md" id="call-user-avatar">
+                            U
+                        </div>
+                        <div class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-white text-xs font-bold">
+                            <span id="call-username-label">You</span>
+                        </div>
+                    </div>
+
+                    <!-- User Card 2 (Other Member) -->
+                    <div class="bg-[#2b2d31] rounded-2xl h-full max-h-[320px] min-h-[200px] flex flex-col items-center justify-center relative border border-white/5 shadow-xl overflow-hidden">
+                        <div class="w-24 h-24 bg-[#40444b] rounded-full flex items-center justify-center text-white/40 text-3xl font-bold shadow-md">
+                            🐶
+                        </div>
+                        <div class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-white/80 text-xs font-bold">
+                            Waiting for someone to join...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Call Control Bar at Bottom -->
+                <div class="flex items-center justify-center space-x-4 pt-4 shrink-0">
+                    <button id="call-mute-btn" class="w-12 h-12 rounded-2xl bg-[#2b2d31] hover:bg-[#35373c] text-white flex items-center justify-center text-lg transition shadow" title="Mute/Unmute">
+                        🎙️
+                    </button>
+                    <button id="call-leave-btn" class="w-14 h-12 rounded-2xl bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-xl transition shadow" title="Leave Voice">
+                        📞
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Hidden audio element for receiving voice -->
+    <audio id="remote-audio" autoplay></audio>
 
     <!-- SCRIPT LOGIC -->
     <script>
@@ -178,7 +199,6 @@
         let isRegistering = false;
         let currentUser = null;
 
-        // UI References
         const authScreen = document.getElementById('auth-screen');
         const appScreen = document.getElementById('app-screen');
         const authTitle = document.getElementById('auth-title');
@@ -190,6 +210,39 @@
         const inputPassword = document.getElementById('input-password');
         const authError = document.getElementById('auth-error');
         const logoutBtn = document.getElementById('logout-btn');
+
+        const chatView = document.getElementById('chat-view');
+        const voiceView = document.getElementById('voice-view');
+        const channelHeaderIcon = document.getElementById('channel-header-icon');
+        const channelHeaderTitle = document.getElementById('channel-header-title');
+        const selectTextChannel = document.getElementById('select-text-channel');
+
+        // Join Voice Chime
+        function playJoinSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {
+                console.error("Audio synth error", e);
+            }
+        }
+
+        selectTextChannel.addEventListener('click', () => {
+            chatView.classList.remove('hidden');
+            voiceView.classList.add('hidden');
+            channelHeaderIcon.textContent = '#';
+            channelHeaderTitle.textContent = 'general-chat';
+        });
 
         authToggleBtn.addEventListener('click', () => {
             isRegistering = !isRegistering;
@@ -263,6 +316,8 @@
                 let cleanUsername = user.email.split('@')[0];
                 document.getElementById('user-display-name').textContent = cleanUsername;
                 document.getElementById('user-avatar').textContent = cleanUsername.charAt(0).toUpperCase();
+                document.getElementById('call-user-avatar').textContent = cleanUsername.charAt(0).toUpperCase();
+                document.getElementById('call-username-label').textContent = cleanUsername;
 
                 loadRealtimeMessages();
             } else {
@@ -309,9 +364,7 @@
             const text = messageInput.value.trim();
             if (!text || !currentUser) return;
 
-            // CLEARS THE INPUT BOX INSTANTLY!
             messageInput.value = '';
-
             const username = currentUser.email.split('@')[0];
 
             try {
@@ -330,45 +383,41 @@
             return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
         }
 
-        /* WEBRTC REALTIME VOICE CALL LOGIC */
+        // WebRTC Voice Calling System & Screen View
         let localStream = null;
         let peerConnection = null;
-        let inVoiceChannel = false;
         let isMuted = false;
-        let callUnsubscribe = null;
 
-        const servers = {
-            iceServers: [
-                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
-            ]
+        const rtcConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         };
 
-        async function toggleVoiceChannel() {
-            if (inVoiceChannel) {
-                leaveVoiceChannel();
-            } else {
-                joinVoiceChannel();
+        const joinVoiceBtn = document.getElementById('join-voice-btn');
+        const voiceStatusBadge = document.getElementById('voice-status-badge');
+        const callMuteBtn = document.getElementById('call-mute-btn');
+        const callLeaveBtn = document.getElementById('call-leave-btn');
+        const remoteAudio = document.getElementById('remote-audio');
+
+        joinVoiceBtn.addEventListener('click', async () => {
+            if (localStream) {
+                // Switch view to voice screen if already connected
+                chatView.classList.add('hidden');
+                voiceView.classList.remove('hidden');
+                channelHeaderIcon.textContent = '🔊';
+                channelHeaderTitle.textContent = 'General Voice';
+                return;
             }
-        }
 
-        async function joinVoiceChannel() {
+            playJoinSound();
+
             try {
-                // Request microphone access from user
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                
-                peerConnection = new RTCPeerConnection(servers);
+                peerConnection = new RTCPeerConnection(rtcConfig);
 
-                // Add microphone audio tracks to peer connection
-                localStream.getTracks().forEach((track) => {
-                    peerConnection.addTrack(track, localStream);
-                });
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-                // Play incoming remote audio stream
                 peerConnection.ontrack = (event) => {
-                    const remoteAudio = document.getElementById('remote-audio');
-                    if (remoteAudio.srcObject !== event.streams[0]) {
-                        remoteAudio.srcObject = event.streams[0];
-                    }
+                    remoteAudio.srcObject = event.streams[0];
                 };
 
                 const callDoc = db.collection('calls').doc('general_voice');
@@ -381,7 +430,6 @@
                     }
                 };
 
-                // Create WebRTC offer
                 const offerDescription = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offerDescription);
 
@@ -392,16 +440,14 @@
 
                 await callDoc.set({ offer });
 
-                // Listen for WebRTC answer from another user joining
-                callUnsubscribe = callDoc.onSnapshot((snapshot) => {
+                callDoc.onSnapshot((snapshot) => {
                     const data = snapshot.data();
-                    if (peerConnection && !peerConnection.currentRemoteDescription && data && data.answer) {
+                    if (!peerConnection.currentRemoteDescription && data && data.answer) {
                         const answerDescription = new RTCSessionDescription(data.answer);
                         peerConnection.setRemoteDescription(answerDescription);
                     }
                 });
 
-                // Listen for ICE candidates
                 answerCandidates.onSnapshot((snapshot) => {
                     snapshot.docChanges().forEach((change) => {
                         if (change.type === 'added') {
@@ -411,12 +457,27 @@
                     });
                 });
 
-                inVoiceChannel = true;
-                updateVoiceUI(true);
+                // Show Voice Screen View
+                chatView.classList.add('hidden');
+                voiceView.classList.remove('hidden');
+                channelHeaderIcon.textContent = '🔊';
+                channelHeaderTitle.textContent = 'General Voice';
+                voiceStatusBadge.textContent = 'Live';
+                voiceStatusBadge.classList.replace('text-discord-textMuted', 'text-emerald-400');
             } catch (err) {
-                alert("Microphone permission required for voice calls: " + err.message);
+                alert("Microphone access is required to join voice chat!");
             }
-        }
+        });
+
+        callMuteBtn.addEventListener('click', () => {
+            if (!localStream) return;
+            isMuted = !isMuted;
+            localStream.getAudioTracks()[0].enabled = !isMuted;
+            callMuteBtn.textContent = isMuted ? '🔇' : '🎙️';
+            callMuteBtn.classList.toggle('bg-red-900/40', isMuted);
+        });
+
+        callLeaveBtn.addEventListener('click', leaveVoiceChannel);
 
         function leaveVoiceChannel() {
             if (localStream) {
@@ -427,48 +488,13 @@
                 peerConnection.close();
                 peerConnection = null;
             }
-            if (callUnsubscribe) {
-                callUnsubscribe();
-                callUnsubscribe = null;
-            }
-
-            inVoiceChannel = false;
-            updateVoiceUI(false);
-        }
-
-        function toggleMute() {
-            if (!localStream) return;
-            isMuted = !isMuted;
-            localStream.getAudioTracks().forEach(track => {
-                track.enabled = !isMuted;
-            });
-            document.getElementById('mute-btn').textContent = isMuted ? 'Unmute' : 'Mute';
-            document.getElementById('mute-btn').className = isMuted 
-                ? 'text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded' 
-                : 'text-xs bg-[#40444b] hover:bg-[#4f545c] text-white px-2 py-1 rounded';
-        }
-
-        function updateVoiceUI(connected) {
-            const statusBadge = document.getElementById('voice-status-badge');
-            const activeBar = document.getElementById('voice-active-bar');
-
-            if (connected) {
-                statusBadge.textContent = 'Active';
-                statusBadge.className = 'text-[10px] bg-emerald-600 px-1.5 py-0.5 rounded text-white font-bold';
-                activeBar.classList.remove('hidden');
-            } else {
-                statusBadge.textContent = 'Off';
-                statusBadge.className = 'text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300';
-                activeBar.classList.add('hidden');
-            }
+            chatView.classList.remove('hidden');
+            voiceView.classList.add('hidden');
+            channelHeaderIcon.textContent = '#';
+            channelHeaderTitle.textContent = 'general-chat';
+            voiceStatusBadge.textContent = 'Off';
+            voiceStatusBadge.classList.replace('text-emerald-400', 'text-discord-textMuted');
         }
     </script>
 </body>
 </html>
-```
-
-### What's New & Upgraded:
-1. **Real-time Voice Calling:** Added a **General Voice** channel in the left sidebar.
-2. **Zero Downloads:** Uses native browser **WebRTC** technology and microphone API (`getUserMedia`), working out of the box directly in your browser.
-3. **Voice UI Status Controls:** When connected, a live voice bar displays with **Mute/Unmute** and **Disconnect** buttons.
-4. **Kept All Previous Fixes:** Features fast, instant chat text field clearing upon sending messages, along with full username and password authentication!
