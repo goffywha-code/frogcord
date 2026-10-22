@@ -104,6 +104,15 @@
                         <span id="voice-status-badge" class="text-[10px] bg-[#202225] px-1.5 py-0.5 rounded text-discord-textMuted">Off</span>
                     </div>
                 </div>
+
+                <!-- ADMIN SECTION (ONLY SHOWS FOR PONDMAN) -->
+                <div id="admin-sidebar-section" class="hidden pt-2 border-t border-[#40444b]/40">
+                    <div class="text-xs font-bold text-amber-400 px-2 uppercase mb-1">Admin Controls</div>
+                    <div id="open-admin-panel" class="px-2 py-1.5 rounded hover:bg-[#35373c] text-discord-textMuted hover:text-white text-sm font-medium flex items-center space-x-2 cursor-pointer transition">
+                        <span>🛡️</span>
+                        <span>Database View</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Footer User Profile Bar -->
@@ -120,7 +129,7 @@
         </div>
 
         <!-- Main Content Area -->
-        <div class="flex-1 bg-[#36393f] flex flex-col min-w-0">
+        <div class="flex-1 bg-[#36393f] flex flex-col min-w-0 relative">
             <div class="h-12 border-b border-[#202225] px-4 flex items-center shadow-sm justify-between shrink-0">
                 <div class="flex items-center space-x-2">
                     <span id="channel-header-icon" class="text-discord-textMuted font-bold text-lg">#</span>
@@ -140,10 +149,9 @@
                 </div>
             </div>
 
-            <!-- Voice Call View (Custom Meet-Style Cards Layout) -->
+            <!-- Voice Call View -->
             <div id="voice-view" class="hidden flex-1 bg-[#111214] flex flex-col justify-between p-6 overflow-hidden">
                 <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center max-w-5xl mx-auto w-full">
-                    <!-- User Card 1 (Local You) -->
                     <div class="bg-[#2b2d31] rounded-2xl h-full max-h-[320px] min-h-[200px] flex flex-col items-center justify-center relative border-2 border-emerald-500/80 shadow-xl overflow-hidden">
                         <div class="w-24 h-24 bg-discord-accent rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md" id="call-user-avatar">
                             U
@@ -153,7 +161,6 @@
                         </div>
                     </div>
 
-                    <!-- User Card 2 (Other Member) -->
                     <div class="bg-[#2b2d31] rounded-2xl h-full max-h-[320px] min-h-[200px] flex flex-col items-center justify-center relative border border-white/5 shadow-xl overflow-hidden">
                         <div class="w-24 h-24 bg-[#40444b] rounded-full flex items-center justify-center text-white/40 text-3xl font-bold shadow-md">
                             🐶
@@ -164,7 +171,6 @@
                     </div>
                 </div>
 
-                <!-- Call Control Bar at Bottom -->
                 <div class="flex items-center justify-center space-x-4 pt-4 shrink-0">
                     <button id="call-mute-btn" class="w-12 h-12 rounded-2xl bg-[#2b2d31] hover:bg-[#35373c] text-white flex items-center justify-center text-lg transition shadow" title="Mute/Unmute">
                         🎙️
@@ -174,13 +180,27 @@
                     </button>
                 </div>
             </div>
+
+            <!-- ADMIN DATABASE VIEW MODAL (ONLY ACCESSIBLE BY PONDMAN) -->
+            <div id="admin-modal" class="hidden absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
+                <div class="bg-[#313338] rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-700">
+                    <div class="p-4 border-b border-gray-700 flex items-center justify-between bg-[#2b2d31]">
+                        <div class="flex items-center space-x-2">
+                            <span>🛡️</span>
+                            <h3 class="font-bold text-white">Pondman's Secure Admin Panel</h3>
+                        </div>
+                        <button id="close-admin-modal" class="text-gray-400 hover:text-white font-bold text-sm px-2 py-1">✕</button>
+                    </div>
+                    <div class="p-4 overflow-y-auto flex-1 space-y-3" id="admin-users-list">
+                        <div class="text-gray-400 text-sm">Loading database credentials...</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Hidden audio element for receiving voice -->
     <audio id="remote-audio" autoplay></audio>
 
-    <!-- SCRIPT LOGIC -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCmoVeVQivebDZsnXR2ltJFMVXYxk_P4U0",
@@ -216,8 +236,13 @@
         const channelHeaderIcon = document.getElementById('channel-header-icon');
         const channelHeaderTitle = document.getElementById('channel-header-title');
         const selectTextChannel = document.getElementById('select-text-channel');
+        
+        const adminSidebarSection = document.getElementById('admin-sidebar-section');
+        const openAdminPanel = document.getElementById('open-admin-panel');
+        const adminModal = document.getElementById('admin-modal');
+        const closeAdminModal = document.getElementById('close-admin-modal');
+        const adminUsersList = document.getElementById('admin-users-list');
 
-        // Join Voice Chime
         function playJoinSound() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -319,6 +344,13 @@
                 document.getElementById('call-user-avatar').textContent = cleanUsername.charAt(0).toUpperCase();
                 document.getElementById('call-username-label').textContent = cleanUsername;
 
+                // CHECK IF LOGGED IN USER IS PONDMAN
+                if (cleanUsername === 'pondman') {
+                    adminSidebarSection.classList.remove('hidden');
+                } else {
+                    adminSidebarSection.classList.add('hidden');
+                }
+
                 loadRealtimeMessages();
             } else {
                 currentUser = null;
@@ -326,6 +358,34 @@
                 appScreen.classList.add('hidden');
             }
         });
+
+        // Admin Panel Trigger for Pondman
+        openAdminPanel.addEventListener('click', async () => {
+            adminModal.classList.remove('hidden');
+            adminUsersList.innerHTML = '<div class="text-gray-400 text-sm">Fetching database...</div>';
+            try {
+                const snapshot = await db.collection("users").get();
+                adminUsersList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = "bg-[#202225] p-3 rounded-lg border border-gray-700 text-sm flex items-center justify-between";
+                    div.innerHTML = `
+                        <div>
+                            <span class="font-bold text-white">@${data.username}</span>
+                        </div>
+                        <div class="text-emerald-400 font-mono font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/50">
+                            ${data.password}
+                        </div>
+                    `;
+                    adminUsersList.appendChild(div);
+                });
+            } catch(e) {
+                adminUsersList.innerHTML = '<div class="text-red-400 text-sm">Error loading data.</div>';
+            }
+        });
+
+        closeAdminModal.addEventListener('click', () => adminModal.classList.add('hidden'));
 
         // Realtime Messages
         const messageContainer = document.getElementById('message-container');
@@ -383,7 +443,7 @@
             return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
         }
 
-        // WebRTC Voice Calling System & Screen View
+        // WebRTC Voice Calling System
         let localStream = null;
         let peerConnection = null;
         let isMuted = false;
@@ -400,7 +460,6 @@
 
         joinVoiceBtn.addEventListener('click', async () => {
             if (localStream) {
-                // Switch view to voice screen if already connected
                 chatView.classList.add('hidden');
                 voiceView.classList.remove('hidden');
                 channelHeaderIcon.textContent = '🔊';
@@ -457,7 +516,6 @@
                     });
                 });
 
-                // Show Voice Screen View
                 chatView.classList.add('hidden');
                 voiceView.classList.remove('hidden');
                 channelHeaderIcon.textContent = '🔊';
